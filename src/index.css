@@ -1,0 +1,8 @@
+/* src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-white dark:bg-gray-900 transition-colors duration-300;
+}
