@@ -2,9 +2,6 @@
 
 A modern web application designed to connect musicians, dancers, artists, and creators from around the world. JamNest provides a platform for artists to showcase their work, build a community, and connect with like-minded individuals.
 
-![JamNest Screenshot](https://i.imgur.com/7c88e701-aba8-4218-b154-53e87a6d0510.jpg) 
-<!-- You can replace this with a newer screenshot of your app! -->
-
 ---
 
 ## Features
