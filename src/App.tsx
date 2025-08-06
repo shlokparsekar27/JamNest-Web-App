@@ -9,10 +9,10 @@ import Home from './pages/Home';
 import Profile from './pages/Profile';
 import Auth from './pages/Auth';
 import Account from './pages/Account';
-import Chat from './pages/Chat';
 import CreatePost from './pages/CreatePost';
 import EditProfile from './pages/EditProfile';
 import PostView from './pages/PostView';
+import ChatPage from './pages/ChatPage';
 
 const ProtectedRoute = ({ session, children }: { session: Session, children: JSX.Element }) => {
   const [loading, setLoading] = useState(true);
@@ -22,7 +22,9 @@ const ProtectedRoute = ({ session, children }: { session: Session, children: JSX
   useEffect(() => {
     async function checkProfile() {
       const { data } = await supabase.from('profiles').select('username').eq('id', session.user.id).single();
-      if (data && data.username) setProfileComplete(true);
+      if (data && data.username) {
+        setProfileComplete(true);
+      }
       setLoading(false);
     }
     checkProfile();
@@ -30,8 +32,11 @@ const ProtectedRoute = ({ session, children }: { session: Session, children: JSX
 
   if (loading) return <div className="flex justify-center items-center h-screen"><div>Loading Profile...</div></div>;
 
-  if (!profileComplete && location.pathname !== '/account/edit' && location.pathname !== '/account') {
-    return <Navigate to="/account" replace />;
+  // THIS IS THE CRITICAL FIX:
+  // If the profile is incomplete and the user is NOT on the edit page,
+  // we now force them to the '/account/edit' page.
+  if (!profileComplete && location.pathname !== '/account/edit') {
+    return <Navigate to="/account/edit" replace />;
   }
   
   return children;
@@ -66,12 +71,12 @@ function App() {
             <Route path="/profile/:id" element={<Profile />} />
             <Route path="/create" element={<CreatePost session={session} />} />
             <Route path="/account/edit" element={<EditProfile session={session} />} />
-            {/* The session is now passed to the PostView component */}
             <Route path="/post/:postId" element={<PostView session={session} />} />
           </Route>
           
           <Route element={<ProtectedRoute session={session}><ChatLayout /></ProtectedRoute>}>
-              <Route path="/chat/:receiverId" element={<Chat session={session} />} />
+              <Route path="/chat" element={<ChatPage session={session} />} />
+              <Route path="/chat/:receiverId" element={<ChatPage session={session} />} />
           </Route>
         </>
       )}
