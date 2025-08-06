@@ -112,7 +112,7 @@ export default function Profile() {
               to={`/chat/${id}`}
               className="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors"
             >
-              Start Chat
+              Chat
             </Link>
           </div>
         </div>

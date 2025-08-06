@@ -3,14 +3,15 @@ import { useState, useEffect, useCallback } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../supabaseClient';
 import Avatar from '../components/Avatar';
-import { useNavigate } from 'react-router-dom';
+// We no longer need useNavigate for this fix
+// import { useNavigate } from 'react-router-dom';
 
 export default function EditProfile({ session }: { session: Session }) {
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState<string | null>(null);
   const [instrument, setInstrument] = useState<string | null>(null);
   const [avatar_url, setAvatarUrl] = useState<string | null>(null);
-  const navigate = useNavigate();
+  // const navigate = useNavigate(); // This is no longer needed
 
   const getProfile = useCallback(async () => {
     setLoading(true);
@@ -61,7 +62,10 @@ export default function EditProfile({ session }: { session: Session }) {
       alert(error.message);
     } else {
       alert('Profile updated successfully!');
-      navigate('/account');
+      // THIS IS THE CRITICAL FIX:
+      // We use window.location.href to force a full page navigation.
+      // This ensures the ProtectedRoute re-checks the profile status.
+      window.location.href = '/account';
     }
     setLoading(false);
   }
@@ -97,7 +101,6 @@ export default function EditProfile({ session }: { session: Session }) {
             />
           </div>
           <div>
-            {/* This label has been updated */}
             <label htmlFor="instrument" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Primary Skill</label>
             <input
               id="instrument"

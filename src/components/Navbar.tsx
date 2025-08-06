@@ -33,7 +33,19 @@ export default function Navbar() {
             >
               Discover
             </NavLink>
-            {/* This is the new link to the Create Post page */}
+            {/* This is the new link to the main Chat page */}
+            <NavLink
+              to="/chat"
+              className={({ isActive }) =>
+                `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'text-blue-600 bg-blue-100 dark:bg-blue-900/50 dark:text-white'
+                    : 'text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+                }`
+              }
+            >
+              Messages
+            </NavLink>
             <NavLink
               to="/create"
               className={({ isActive }) =>
