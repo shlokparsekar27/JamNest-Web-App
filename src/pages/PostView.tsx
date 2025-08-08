@@ -39,6 +39,7 @@ export default function PostView({ session }: { session: Session }) {
 
   const [likesCount, setLikesCount] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
+
   const [comments, setComments] = useState<CommentData[]>([]);
   const [newComment, setNewComment] = useState('');
 
@@ -56,13 +57,13 @@ export default function PostView({ session }: { session: Session }) {
       const { data, error } = await supabase
         .from('posts')
         .select(`
-          id,
-          user_id,
-          caption,
-          media_url,
-          created_at,
-          profiles(username, avatar_url)
-        `)
+        id,
+        user_id,
+        caption,
+        media_url,
+        created_at,
+        profiles(username, avatar_url)
+      `)
         .eq('id', postId)
         .single();
 
@@ -92,26 +93,23 @@ export default function PostView({ session }: { session: Session }) {
     getLikes();
     getComments();
 
-    // Real-time listeners for likes and comments
+    // Real-time likes
     const likesSubscription = supabase
       .channel('likes-changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'likes', filter: `post_id=eq.${postId}` },
-        () => {
-          getLikes();
-        }
+        () => getLikes()
       )
       .subscribe();
 
+    // Real-time comments
     const commentsSubscription = supabase
       .channel('comments-changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'comments', filter: `post_id=eq.${postId}` },
-        () => {
-          getComments();
-        }
+        () => getComments()
       )
       .subscribe();
 
@@ -122,13 +120,10 @@ export default function PostView({ session }: { session: Session }) {
     };
   }, [postId]);
 
+  // Likes
   async function getLikes() {
     if (!postId) return;
-    const { data, error } = await supabase
-      .from('likes')
-      .select('user_id', { count: 'exact' })
-      .eq('post_id', postId);
-
+    const { data, error } = await supabase.from('likes').select('user_id').eq('post_id', postId);
     if (!error && data) {
       setLikesCount(data.length);
       setIsLiked(data.some((like) => like.user_id === session.user.id));
@@ -138,59 +133,90 @@ export default function PostView({ session }: { session: Session }) {
   async function toggleLike() {
     if (!postId) return;
     if (isLiked) {
-      await supabase
-        .from('likes')
-        .delete()
-        .eq('post_id', postId)
-        .eq('user_id', session.user.id);
+      setLikesCount((prev) => prev - 1);
+      setIsLiked(false);
+      await supabase.from('likes').delete().eq('post_id', postId).eq('user_id', session.user.id);
     } else {
+      setLikesCount((prev) => prev + 1);
+      setIsLiked(true);
       await supabase.from('likes').insert([{ post_id: postId, user_id: session.user.id }]);
     }
   }
 
+  // Comments
   async function getComments() {
     if (!postId) return;
     const { data, error } = await supabase
       .from('comments')
       .select(`
-        id,
-        user_id,
-        content,
-        created_at,
-        profiles(username, avatar_url)
-      `)
+    id,
+    content,
+    created_at,
+    profiles (
+      username,
+      avatar_url
+    )
+  `)
       .eq('post_id', postId)
       .order('created_at', { ascending: true });
 
-    if (!error && data) {
-      setComments(data as CommentData[]);
-    }
+    if (error) console.error(error);
+    else console.log(data);
+
   }
 
   async function addComment() {
     if (!postId || !newComment.trim()) return;
-    await supabase.from('comments').insert([
-      { post_id: postId, user_id: session.user.id, content: newComment.trim() },
-    ]);
+
+    // Optimistic update
+    const tempComment: CommentData = {
+      id: Date.now(), // temporary ID
+      user_id: session.user.id,
+      content: newComment.trim(),
+      created_at: new Date().toISOString(),
+      profiles: [
+        {
+          username: session.user.user_metadata.username || 'You',
+          avatar_url: session.user.user_metadata.avatar_url || null,
+        },
+      ],
+    };
+
+    setComments((prev) => [...prev, tempComment]);
     setNewComment('');
+
+    await supabase.from('comments').insert([{ post_id: postId, user_id: session.user.id, content: newComment.trim() }]);
   }
 
-  const handleDelete = async () => {
-    if (!post) return;
+  const handleDeleteComment = async (commentId: number) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this comment?");
+    if (!confirmDelete) return;
 
+    const { error } = await supabase
+      .from("comments")
+      .delete()
+      .eq("id", commentId);
+
+    if (error) {
+      console.error("Error deleting comment:", error);
+    } else {
+      // Remove the deleted comment from local state instantly
+      setComments((prevComments) =>
+        prevComments.filter((comment) => comment.id !== commentId)
+      );
+      console.log("Comment deleted");
+    }
+  };
+  ;
+  // Post deletion
+  const handleDeletePost = async () => {
+    if (!post) return;
     if (window.confirm('Are you sure you want to delete this post?')) {
       try {
-        const { error: storageError } = await supabase.storage
-          .from('posts')
-          .remove([post.media_url]);
+        const { error: storageError } = await supabase.storage.from('posts').remove([post.media_url]);
         if (storageError) throw storageError;
-
-        const { error: dbError } = await supabase
-          .from('posts')
-          .delete()
-          .eq('id', post.id);
+        const { error: dbError } = await supabase.from('posts').delete().eq('id', post.id);
         if (dbError) throw dbError;
-
         alert('Post deleted successfully!');
         navigate(`/account`);
       } catch (error) {
@@ -217,7 +243,7 @@ export default function PostView({ session }: { session: Session }) {
           </div>
           {isOwner && (
             <button
-              onClick={handleDelete}
+              onClick={handleDeletePost}
               className="px-3 py-2 rounded-md text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/50 transition-colors"
             >
               Delete
@@ -243,7 +269,7 @@ export default function PostView({ session }: { session: Session }) {
           </p>
         </div>
 
-        {/* Likes + Comments Count */}
+        {/* Like + Comment Count */}
         <div className="px-4 pb-2 flex items-center gap-6">
           <button onClick={toggleLike} className="flex items-center gap-1 text-gray-700 dark:text-gray-300">
             {isLiked ? '❤️' : '🤍'} {likesCount}
@@ -253,12 +279,11 @@ export default function PostView({ session }: { session: Session }) {
 
         {/* Comments Section */}
         <div className="px-4 pb-4">
-          {/* Scrollable comments area */}
           <div className="space-y-3 max-h-64 overflow-y-auto border rounded-md p-3 bg-gray-50 dark:bg-gray-900">
             {comments.map((comment) => (
               <div key={comment.id} className="flex items-start space-x-3">
                 <ProfileAvatar url={comment.profiles?.[0]?.avatar_url || null} size={30} />
-                <div>
+                <div className="flex-1">
                   <span className="font-semibold text-gray-800 dark:text-gray-200">
                     {comment.profiles?.[0]?.username}
                   </span>
@@ -267,11 +292,19 @@ export default function PostView({ session }: { session: Session }) {
                     {new Date(comment.created_at).toLocaleString()}
                   </span>
                 </div>
+                {comment.user_id === session.user.id && (
+                  <button
+                    onClick={() => handleDeleteComment(comment.id)}
+                    className="text-red-500 hover:underline"
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
             ))}
           </div>
 
-          {/* Add Comment Input */}
+          {/* Add Comment */}
           <div className="mt-3 flex items-center gap-2">
             <input
               type="text"
