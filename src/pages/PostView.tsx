@@ -253,7 +253,8 @@ export default function PostView({ session }: { session: Session }) {
 
         {/* Comments Section */}
         <div className="px-4 pb-4">
-          <div className="space-y-3">
+          {/* Scrollable comments area */}
+          <div className="space-y-3 max-h-64 overflow-y-auto border rounded-md p-3 bg-gray-50 dark:bg-gray-900">
             {comments.map((comment) => (
               <div key={comment.id} className="flex items-start space-x-3">
                 <ProfileAvatar url={comment.profiles?.[0]?.avatar_url || null} size={30} />
@@ -269,6 +270,7 @@ export default function PostView({ session }: { session: Session }) {
               </div>
             ))}
           </div>
+
           {/* Add Comment Input */}
           <div className="mt-3 flex items-center gap-2">
             <input
